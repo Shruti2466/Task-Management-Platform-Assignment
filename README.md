@@ -90,11 +90,4 @@ Enforced at the controller level using `[Authorize(Roles = "Admin")]` and `[Auth
 ### Structured Logging
 All services use .NET's built-in `ILogger<T>` with structured log messages (e.g. `LogInformation`, `LogError`), compatible with any standard logging sink (e.g. Serilog, Application Insights).
 
-## Known Limitations
 
-- **In-memory data loss**: All data is wiped when any service restarts. For persistence, swap `UseInMemoryDatabase` for `UseSqlite` or `UseSqlServer`.
-- **No password hashing**: Passwords are stored as plain text for simplicity. In production use BCrypt / Argon2.
-- **No token refresh**: JWTs expire after 2 hours with no refresh mechanism.
-- **No event bus**: ReportingService queries TaskService synchronously; in production this would be asynchronous (event-driven).
-- **Single replica**: No load balancing or service discovery configured; horizontal scaling would require a shared persistent store and a gateway.
-- **CORS**: Currently only allows `http://localhost:4200`. Docker container origins would need to be added.
