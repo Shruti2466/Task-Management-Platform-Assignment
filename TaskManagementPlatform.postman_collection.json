@@ -1,0 +1,448 @@
+{
+    "info": {
+        "name": "Task Management Platform",
+        "description": "Complete API collection for the Task Management Platform. Set the `{{token}}` variable after running the Login request.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "userServiceUrl",
+            "value": "http://localhost:5001"
+        },
+        {
+            "key": "taskServiceUrl",
+            "value": "http://localhost:5002"
+        },
+        {
+            "key": "reportServiceUrl",
+            "value": "http://localhost:5003"
+        },
+        {
+            "key": "token",
+            "value": ""
+        }
+    ],
+    "item": [
+        {
+            "name": "User Service",
+            "item": [
+                {
+                    "name": "Login (Admin)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"username\": \"admin\",\n    \"password\": \"admin\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{userServiceUrl}}/api/auth/login",
+                            "host": [
+                                "{{userServiceUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "login"
+                            ]
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.collectionVariables.set('token', res.Token || res.token);"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "List Users",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{userServiceUrl}}/api/users",
+                            "host": [
+                                "{{userServiceUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get User (id=1)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{userServiceUrl}}/api/users/1",
+                            "host": [
+                                "{{userServiceUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create User",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"username\": \"newengineer\",\n    \"passwordHash\": \"password123\",\n    \"role\": \"Engineer\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{userServiceUrl}}/api/users",
+                            "host": [
+                                "{{userServiceUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update User (id=3)",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"username\": \"engineer_updated\",\n    \"passwordHash\": \"newpass\",\n    \"role\": \"Engineer\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{userServiceUrl}}/api/users/3",
+                            "host": [
+                                "{{userServiceUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users",
+                                "3"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete User (id=3) [Admin Only]",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{userServiceUrl}}/api/users/3",
+                            "host": [
+                                "{{userServiceUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users",
+                                "3"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Task Service",
+            "item": [
+                {
+                    "name": "List Tasks",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{taskServiceUrl}}/api/tasks",
+                            "host": [
+                                "{{taskServiceUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "tasks"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "List Tasks (filter by status=Open)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{taskServiceUrl}}/api/tasks?status=Open",
+                            "host": [
+                                "{{taskServiceUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "tasks"
+                            ],
+                            "query": [
+                                {
+                                    "key": "status",
+                                    "value": "Open"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "List Tasks (filter by assigneeId + date range)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{taskServiceUrl}}/api/tasks?assigneeId=1&fromDate=2025-01-01&toDate=2030-12-31",
+                            "host": [
+                                "{{taskServiceUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "tasks"
+                            ],
+                            "query": [
+                                {
+                                    "key": "assigneeId",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "fromDate",
+                                    "value": "2025-01-01"
+                                },
+                                {
+                                    "key": "toDate",
+                                    "value": "2030-12-31"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Task",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"title\": \"Fix login bug\",\n    \"description\": \"Login page crashes on empty password\",\n    \"priority\": \"High\",\n    \"status\": \"Open\",\n    \"assigneeId\": 3,\n    \"dueDate\": \"2026-03-20T00:00:00Z\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{taskServiceUrl}}/api/tasks",
+                            "host": [
+                                "{{taskServiceUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "tasks"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Task (id=1) + Activity Log",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{taskServiceUrl}}/api/tasks/1",
+                            "host": [
+                                "{{taskServiceUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "tasks",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Task Status to In Progress (id=1)",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"title\": \"Fix login bug\",\n    \"description\": \"Login page crashes on empty password\",\n    \"priority\": \"High\",\n    \"status\": \"In Progress\",\n    \"assigneeId\": 3,\n    \"dueDate\": \"2026-03-20T00:00:00Z\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{taskServiceUrl}}/api/tasks/1",
+                            "host": [
+                                "{{taskServiceUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "tasks",
+                                "1"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Reporting Service",
+            "item": [
+                {
+                    "name": "Tasks By User",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{reportServiceUrl}}/api/reports/tasks-by-user",
+                            "host": [
+                                "{{reportServiceUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "reports",
+                                "tasks-by-user"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Tasks By Status",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{reportServiceUrl}}/api/reports/tasks-by-status",
+                            "host": [
+                                "{{reportServiceUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "reports",
+                                "tasks-by-status"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "SLA Breach Report",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{reportServiceUrl}}/api/reports/sla-breach",
+                            "host": [
+                                "{{reportServiceUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "reports",
+                                "sla-breach"
+                            ]
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}
