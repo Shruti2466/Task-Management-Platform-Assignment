@@ -1,7 +1,7 @@
 # Task Management Platform
 
 ## Overview
-A microservices-based Task Management Platform built using .NET Core (`net10.0`), Entity Framework Core (In-Memory), and Angular 17. The project demonstrates clean separation of concerns, inter-service HTTP communication, JWT-based authentication with role-based access control, and a modern SPA frontend.
+A microservices-based Task Management Platform built using .NET Core (`net10.0`), Entity Framework Core (MySQL), and Angular 17. The project demonstrates clean separation of concerns, inter-service HTTP communication, JWT-based authentication with role-based access control, a modern SPA frontend, and comprehensive Docker Compose orchestration.
 
 ## Architecture
 
@@ -15,7 +15,7 @@ A microservices-based Task Management Platform built using .NET Core (`net10.0`)
 ## Setup & Running
 
 ### Option 1 — Docker Compose (Recommended)
-Requires Docker Desktop installed.
+Requires Docker Desktop installed. This provisions the core services, the Angular frontend, and the MySQL database containers.
 
 ```bash
 cd TaskManagementPlatform
@@ -60,7 +60,7 @@ cd TaskManagementPlatform
 dotnet test --verbosity normal
 ```
 
-This runs tests from both `TaskService.Tests` (3 tests: 2 unit + 1 integration) and `UserService.Tests` (5 tests: unit + integration).
+This runs tests across all layers including `TaskService.Tests`, `UserService.Tests`, and `ReportingService.Tests` implementing both unit and integration permutations.
 
 ## API Documentation
 
@@ -81,8 +81,11 @@ JWT is generated with a symmetric HMAC-SHA256 key and includes `NameIdentifier`,
 ### Inter-Service Communication
 ReportingService calls TaskService directly over HTTP, forwarding the caller's Bearer token. This is a simple, infrastructure-free approach suitable for the assignment scope. In production, an event bus (e.g. RabbitMQ) or API gateway would be preferred.
 
-### In-Memory Database
-`Microsoft.EntityFrameworkCore.InMemory` is used for zero-setup development. Each service has its own isolated in-memory store. **Data does not persist across restarts.** Seed data (three users) is re-applied on every startup via `OnModelCreating`.
+### Persistent Database & Migrations
+The platform operates on a robust MySQL persistence layer. Entity Framework Core automatically evaluates and provisions iterative migrations ensuring tables are mapped safely at runtime boundaries. 
+
+### Modern Angular Frontend
+The SPA utilizes strict TypeScript interfaces throughout (`models.ts`), comprehensive cross-component error handling contexts, loading/spin-states, Reactive Form validations natively bound to the templates, and explicit UI filter dropdowns (Assignees + Dates) tied seamlessly to the `TaskService`.
 
 ### Role-Based Access Control
 Enforced at the controller level using `[Authorize(Roles = "Admin")]` and `[Authorize(Roles = "Admin,Manager")]` attributes. The JWT `Role` claim drives access checks without any additional middleware.
