@@ -148,6 +148,13 @@ public class UserServiceIntegrationTests : IClassFixture<WebApplicationFactory<P
     {
         _factory = factory.WithWebHostBuilder(builder =>
         {
+            builder.ConfigureAppConfiguration((context, config) =>
+            {
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    { "Jwt:Key", "IntegrationTestSecretKey1234567890!" }
+                });
+            });
             builder.ConfigureServices(services =>
             {
                 // Replace the real DB with an in-memory DB for isolation

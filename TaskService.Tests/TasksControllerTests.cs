@@ -14,6 +14,7 @@ using TaskService.Models;
 using Xunit;
 using Moq;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 
 namespace TaskService.Tests;
 
@@ -79,6 +80,13 @@ public class TasksApiIntegrationTests : IClassFixture<WebApplicationFactory<Prog
     {
         _factory = factory.WithWebHostBuilder(builder =>
         {
+            builder.ConfigureAppConfiguration((context, config) =>
+            {
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    { "Jwt:Key", "IntegrationTestSecretKey1234567890!" }
+                });
+            });
             builder.ConfigureServices(services =>
             {
                 var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<TaskDbContext>));
