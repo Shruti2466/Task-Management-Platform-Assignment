@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
+import { User } from '../../models/models';
 
 @Component({
   selector: 'app-admin-users',
@@ -13,7 +14,13 @@ import { ApiService } from '../../services/api.service';
       <button class="btn btn-primary" (click)="openModal()">Create New User</button>
     </div>
 
-    <div class="card p-4">
+    <div *ngIf="loading" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="mt-2 text-muted">Loading users...</p>
+    </div>
+    <div *ngIf="error" class="alert alert-danger">{{ error }}</div>
+
+    <div class="card p-4" *ngIf="!loading && !error">
       <table class="table table-hover mt-2">
         <thead>
           <tr>
@@ -70,7 +77,9 @@ import { ApiService } from '../../services/api.service';
                 <option value="Engineer">Engineer</option>
               </select>
             </div>
-            <button class="btn btn-primary" (click)="saveUser()">Save</button>
+            <button class="btn btn-primary" (click)="saveUser()" [disabled]="saving">
+              <span *ngIf="saving" class="spinner-border spinner-border-sm me-1"></span>Save
+            </button>
           </div>
         </div>
       </div>
@@ -78,9 +87,12 @@ import { ApiService } from '../../services/api.service';
   `
 })
 export class AdminUsersComponent implements OnInit {
-  users: any[] = [];
+  users: User[] = [];
   showModal = false;
-  editingUser: any = { role: 'User' };
+  editingUser: Partial<User> & { passwordHash?: string } = { role: 'User' };
+  loading = false;
+  error = '';
+  saving = false;
 
   constructor(private api: ApiService) { }
 
@@ -89,8 +101,17 @@ export class AdminUsersComponent implements OnInit {
   }
 
   loadUsers() {
-    this.api.getUsers().subscribe(res => {
-      this.users = res;
+    this.loading = true;
+    this.error = '';
+    this.api.getUsers().subscribe({
+      next: (res) => {
+        this.users = res;
+        this.loading = false;
+      },
+      error: () => {
+        this.error = 'Failed to load users';
+        this.loading = false;
+      }
     });
   }
 
@@ -99,7 +120,7 @@ export class AdminUsersComponent implements OnInit {
     this.showModal = true;
   }
 
-  editUser(user: any) {
+  editUser(user: User) {
     this.editingUser = { ...user };
     this.showModal = true;
   }
@@ -109,24 +130,39 @@ export class AdminUsersComponent implements OnInit {
   }
 
   saveUser() {
+    this.saving = true;
     if (this.editingUser.id) {
-      // API expects passwordHash to not be empty if updating, so we retain if needed or let user supply new
-      this.api.updateUser(this.editingUser.id, this.editingUser).subscribe(() => {
-        this.closeModal();
-        this.loadUsers();
+      this.api.updateUser(this.editingUser.id, this.editingUser as Partial<User>).subscribe({
+        next: () => {
+          this.saving = false;
+          this.closeModal();
+          this.loadUsers();
+        },
+        error: () => {
+          alert('Failed to update user');
+          this.saving = false;
+        }
       });
     } else {
-      this.api.createUser(this.editingUser).subscribe(() => {
-        this.closeModal();
-        this.loadUsers();
+      this.api.createUser(this.editingUser as Partial<User>).subscribe({
+        next: () => {
+          this.saving = false;
+          this.closeModal();
+          this.loadUsers();
+        },
+        error: () => {
+          alert('Failed to create user');
+          this.saving = false;
+        }
       });
     }
   }
 
   deleteUser(id: number) {
     if (confirm('Are you sure you want to delete this user?')) {
-      this.api.deleteUser(id).subscribe(() => {
-        this.loadUsers();
+      this.api.deleteUser(id).subscribe({
+        next: () => this.loadUsers(),
+        error: () => alert('Failed to delete user')
       });
     }
   }

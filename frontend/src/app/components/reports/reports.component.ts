@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ApiService } from '../../services/api.service';
+import { User, TaskReport, SlaBreach } from '../../models/models';
 
 @Component({
   selector: 'app-reports',
@@ -10,7 +11,14 @@ import { ApiService } from '../../services/api.service';
     <h3>System Reports</h3>
     <hr>
     
-    <div class="row">
+    <div *ngIf="loading" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="mt-2 text-muted">Loading reports...</p>
+    </div>
+
+    <div *ngIf="error" class="alert alert-danger">{{ error }}</div>
+
+    <div class="row" *ngIf="!loading && !error">
       <div class="col-md-6 mb-4">
         <div class="card p-3 h-100">
           <h5>Tasks by User</h5>
@@ -75,21 +83,41 @@ import { ApiService } from '../../services/api.service';
   `
 })
 export class ReportsComponent implements OnInit {
-  tasksByUser: any[] = [];
-  tasksByStatus: any[] = [];
-  slaBreaches: any[] = [];
-  users: any[] = [];
+  tasksByUser: TaskReport[] = [];
+  tasksByStatus: TaskReport[] = [];
+  slaBreaches: SlaBreach[] = [];
+  users: User[] = [];
+  loading = true;
+  error = '';
 
   constructor(private api: ApiService) { }
 
   ngOnInit() {
-    this.api.getUsers().subscribe(res => this.users = res);
-    this.api.getTasksByUser().subscribe(res => this.tasksByUser = res);
-    this.api.getTasksByStatus().subscribe(res => this.tasksByStatus = res);
-    this.api.getSlaBreach().subscribe(res => this.slaBreaches = res);
+    this.api.getUsers().subscribe({
+      next: (res) => this.users = res,
+      error: (err) => { console.warn('Could not load users for name mapping', err); }
+    });
+    this.api.getTasksByUser().subscribe({
+      next: res => this.tasksByUser = res,
+      error: () => this.error = 'Failed to load task by user report'
+    });
+    this.api.getTasksByStatus().subscribe({
+      next: res => this.tasksByStatus = res,
+      error: () => this.error = 'Failed to load task by status report'
+    });
+    this.api.getSlaBreach().subscribe({
+      next: res => {
+        this.slaBreaches = res;
+        this.loading = false;
+      },
+      error: () => {
+        this.error = 'Failed to load SLA breaches';
+        this.loading = false;
+      }
+    });
   }
 
-  getAssigneeName(id: number | null): string {
+  getAssigneeName(id: number | null | undefined): string {
     if (!id) return 'Unassigned';
     const user = this.users.find(u => u.id === id);
     return user ? user.username : 'Unknown';

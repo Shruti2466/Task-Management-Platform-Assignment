@@ -14,6 +14,9 @@ using UserService.Controllers;
 using UserService.Data;
 using UserService.Models;
 using Xunit;
+using Moq;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 
 namespace UserService.Tests;
 
@@ -32,13 +35,24 @@ public class AuthControllerUnitTests
         return ctx;
     }
 
+    private Microsoft.Extensions.Logging.ILogger<AuthController> MockLogger() => new Moq.Mock<Microsoft.Extensions.Logging.ILogger<AuthController>>().Object;
+    private Microsoft.Extensions.Configuration.IConfiguration MockConfig()
+    {
+        var mock = new Moq.Mock<Microsoft.Extensions.Configuration.IConfiguration>();
+        mock.Setup(c => c["Jwt:Key"]).Returns(Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N"));
+        mock.Setup(c => c["Jwt:Issuer"]).Returns("TaskManagementPlatform");
+        mock.Setup(c => c["Jwt:Audience"]).Returns("TaskManagementPlatform");
+        return mock.Object;
+    }
+
     [Fact]
     public void Login_WithValidAdminCredentials_ReturnsToken()
     {
         // Arrange
         var context = GetMemoryContext(Guid.NewGuid().ToString());
-        var controller = new AuthController(context);
-        var request = new LoginRequest { Username = "admin", Password = "admin" };
+        // admin is seeded with "admin" password (hashed in UserDbContext.OnModelCreating)
+        var controller = new AuthController(context, MockLogger(), MockConfig());
+        var request = new LoginRequestDto { Username = "admin", Password = "admin" };
 
         // Act
         var result = controller.Login(request);
@@ -54,8 +68,8 @@ public class AuthControllerUnitTests
     {
         // Arrange
         var context = GetMemoryContext(Guid.NewGuid().ToString());
-        var controller = new AuthController(context);
-        var request = new LoginRequest { Username = "admin", Password = "wrongpassword" };
+        var controller = new AuthController(context, MockLogger(), MockConfig());
+        var request = new LoginRequestDto { Username = "admin", Password = "wrongpassword" };
 
         // Act
         var result = controller.Login(request);
@@ -82,7 +96,8 @@ public class UsersControllerUnitTests
 
     private UsersController CreateControllerWithRole(UserDbContext ctx, string role)
     {
-        var controller = new UsersController(ctx);
+        var loggerMock = new Moq.Mock<Microsoft.Extensions.Logging.ILogger<UsersController>>();
+        var controller = new UsersController(ctx, loggerMock.Object);
         // Simulate a logged-in user with the given role via HttpContext
         var claims = new[] { new Claim(ClaimTypes.Name, "testuser"), new Claim(ClaimTypes.Role, role) };
         var identity = new ClaimsIdentity(claims, "Test");
@@ -106,7 +121,7 @@ public class UsersControllerUnitTests
 
         // Assert
         var ok = Assert.IsType<OkObjectResult>(result);
-        var returnedUser = Assert.IsType<User>(ok.Value);
+        var returnedUser = Assert.IsType<UserReadDto>(ok.Value);
         Assert.Equal("admin", returnedUser.Username);
     }
 
@@ -146,7 +161,7 @@ public class UserServiceIntegrationTests : IClassFixture<WebApplicationFactory<P
     private string GetAdminToken()
     {
         var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.UTF8.GetBytes("SuperSecretKeyForTaskManagementPlatform12345!");
+        var key = Encoding.UTF8.GetBytes(Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N"));
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(new[]

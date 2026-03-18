@@ -8,23 +8,19 @@ using Xunit;
 
 namespace ReportingService.Tests;
 
-public class ReportsControllerTests : IClassFixture<WebApplicationFactory<Program>>
+public class ReportsControllerTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
-
-    public ReportsControllerTests(WebApplicationFactory<Program> factory)
+    private Mock<Microsoft.Extensions.Caching.Memory.IMemoryCache> MockCache()
     {
-        _factory = factory;
+        var mock = new Mock<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
+        object? value = null;
+        mock.Setup(c => c.TryGetValue(It.IsAny<object>(), out value)).Returns(false);
+        mock.Setup(c => c.CreateEntry(It.IsAny<object>())).Returns(new Mock<Microsoft.Extensions.Caching.Memory.ICacheEntry>().Object);
+        return mock;
     }
 
-    [Fact]
-    public async Task GetTasksByStatus_ReturnsAggregatedData()
+    private Mock<IHttpClientFactory> MockHttpClientFactory(List<TaskItemDto> tasks)
     {
-        // Integration-style test with mocked TaskService response
-        // In a real scenario, we might use WireMock or a dedicated test server for TaskService
-        // Here we'll use a unit test approach for the logic within the controller
-        
-        // Arrange
         var mockHandler = new Mock<HttpMessageHandler>();
         mockHandler.Protected()
             .Setup<Task<HttpResponseMessage>>(
@@ -35,12 +31,7 @@ public class ReportsControllerTests : IClassFixture<WebApplicationFactory<Progra
             .ReturnsAsync(new HttpResponseMessage
             {
                 StatusCode = HttpStatusCode.OK,
-                Content = JsonContent.Create(new List<TaskItemDto>
-                {
-                    new TaskItemDto { Id = 1, Status = "Open", AssigneeId = 1 },
-                    new TaskItemDto { Id = 2, Status = "Open", AssigneeId = 2 },
-                    new TaskItemDto { Id = 3, Status = "Completed", AssigneeId = 1 }
-                })
+                Content = JsonContent.Create(tasks)
             });
 
         var client = new HttpClient(mockHandler.Object)
@@ -50,17 +41,79 @@ public class ReportsControllerTests : IClassFixture<WebApplicationFactory<Progra
 
         var mockFactory = new Mock<IHttpClientFactory>();
         mockFactory.Setup(_ => _.CreateClient("TaskServiceClient")).Returns(client);
+        return mockFactory;
+    }
 
+    [Fact]
+    public async Task GetTasksByStatus_ReturnsAggregatedData()
+    {
+        // Arrange
+        var tasks = new List<TaskItemDto>
+        {
+            new TaskItemDto { Id = 1, Status = "Open", AssigneeId = 1 },
+            new TaskItemDto { Id = 2, Status = "Open", AssigneeId = 2 },
+            new TaskItemDto { Id = 3, Status = "Completed", AssigneeId = 1 }
+        };
+
+        var mockFactory = MockHttpClientFactory(tasks);
         var mockLogger = new Mock<Microsoft.Extensions.Logging.ILogger<Controllers.ReportsController>>();
-        var controller = new Controllers.ReportsController(mockFactory.Object, mockLogger.Object);
+        var controller = new Controllers.ReportsController(mockFactory.Object, mockLogger.Object, MockCache().Object);
 
         // Act
         var result = await controller.GetTasksByStatus();
 
         // Assert
         var okResult = Assert.IsType<Microsoft.AspNetCore.Mvc.OkObjectResult>(result);
-        var body = okResult.Value as IEnumerable<dynamic>;
-        Assert.NotNull(body);
-        Assert.Equal(2, body.Count()); // Open and Completed
+        var body = Assert.IsAssignableFrom<IEnumerable<object>>(okResult.Value);
+        Assert.Equal(2, body.Count());
+    }
+
+    [Fact]
+    public async Task GetTasksByUser_ReturnsAggregatedData()
+    {
+        // Arrange
+        var tasks = new List<TaskItemDto>
+        {
+            new TaskItemDto { Id = 1, Status = "Open", AssigneeId = 1 },
+            new TaskItemDto { Id = 2, Status = "Open", AssigneeId = 1 },
+            new TaskItemDto { Id = 3, Status = "Completed", AssigneeId = 2 }
+        };
+
+        var mockFactory = MockHttpClientFactory(tasks);
+        var mockLogger = new Mock<Microsoft.Extensions.Logging.ILogger<Controllers.ReportsController>>();
+        var controller = new Controllers.ReportsController(mockFactory.Object, mockLogger.Object, MockCache().Object);
+
+        // Act
+        var result = await controller.GetTasksByUser();
+
+        // Assert
+        var okResult = Assert.IsType<Microsoft.AspNetCore.Mvc.OkObjectResult>(result);
+        var body = Assert.IsAssignableFrom<IEnumerable<object>>(okResult.Value);
+        Assert.Equal(2, body.Count());
+    }
+
+    [Fact]
+    public async Task GetSlaBreachReport_ReturnsOverdueTasks()
+    {
+        // Arrange
+        var today = DateTime.UtcNow.Date;
+        var tasks = new List<TaskItemDto>
+        {
+            new TaskItemDto { Id = 1, Title = "Overdue", DueDate = today.AddDays(-1), Status = "Open", AssigneeId = 1 },
+            new TaskItemDto { Id = 2, Title = "Not Overdue", DueDate = today.AddDays(1), Status = "Open", AssigneeId = 1 },
+            new TaskItemDto { Id = 3, Title = "Overdue but Completed", DueDate = today.AddDays(-1), Status = "Completed", AssigneeId = 2 }
+        };
+
+        var mockFactory = MockHttpClientFactory(tasks);
+        var mockLogger = new Mock<Microsoft.Extensions.Logging.ILogger<Controllers.ReportsController>>();
+        var controller = new Controllers.ReportsController(mockFactory.Object, mockLogger.Object, MockCache().Object);
+
+        // Act
+        var result = await controller.GetSlaBreachReport();
+
+        // Assert
+        var okResult = Assert.IsType<Microsoft.AspNetCore.Mvc.OkObjectResult>(result);
+        var body = Assert.IsAssignableFrom<IEnumerable<object>>(okResult.Value);
+        Assert.Single(body);
     }
 }

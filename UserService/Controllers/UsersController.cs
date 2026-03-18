@@ -21,41 +21,66 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> ListUsers()
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<ActionResult<IEnumerable<UserReadDto>>> ListUsers()
     {
         _logger.LogInformation("Listing all users");
         var users = await _context.Users.ToListAsync();
-        return Ok(users);
+        return Ok(users.Select(u => new UserReadDto
+        {
+            Id = u.Id,
+            Username = u.Username,
+            Role = u.Role
+        }));
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetUser(int id)
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<ActionResult<UserReadDto>> GetUser(int id)
     {
         var user = await _context.Users.FindAsync(id);
         if (user == null) return NotFound();
-        return Ok(user);
+        return Ok(new UserReadDto
+        {
+            Id = user.Id,
+            Username = user.Username,
+            Role = user.Role
+        });
     }
 
     [HttpPost]
     [Authorize(Roles = "Admin,Manager")]
-    public async Task<IActionResult> CreateUser([FromBody] User user)
+    public async Task<IActionResult> CreateUser([FromBody] UserCreateDto userDto)
     {
-        _logger.LogInformation("Creating new user: {Username} with role: {Role}", user.Username, user.Role);
+        _logger.LogInformation("Creating new user: {Username} with role: {Role}", userDto.Username, userDto.Role);
+        
+        var user = new User
+        {
+            Username = userDto.Username,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(userDto.Password),
+            Role = userDto.Role
+        };
+
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetUser), new { id = user.Id }, user);
+        
+        return CreatedAtAction(nameof(GetUser), new { id = user.Id }, new UserReadDto
+        {
+            Id = user.Id,
+            Username = user.Username,
+            Role = user.Role
+        });
     }
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin,Manager")]
-    public async Task<IActionResult> UpdateUser(int id, [FromBody] User updatedUser)
+    public async Task<IActionResult> UpdateUser(int id, [FromBody] UserUpdateDto updatedUserDto)
     {
         var user = await _context.Users.FindAsync(id);
         if (user == null) return NotFound();
 
-        user.Username = updatedUser.Username;
-        user.PasswordHash = updatedUser.PasswordHash;
-        user.Role = updatedUser.Role;
+        user.Username = updatedUserDto.Username;
+        user.Role = updatedUserDto.Role;
 
         await _context.SaveChangesAsync();
         return NoContent();

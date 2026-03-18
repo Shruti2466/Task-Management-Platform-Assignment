@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using ReportingService.Models;
 
 namespace ReportingService.Controllers;
@@ -11,11 +12,13 @@ public class ReportsController : ControllerBase
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<ReportsController> _logger;
+    private readonly IMemoryCache _cache;
 
-    public ReportsController(IHttpClientFactory httpClientFactory, ILogger<ReportsController> logger)
+    public ReportsController(IHttpClientFactory httpClientFactory, ILogger<ReportsController> logger, IMemoryCache cache)
     {
         _httpClient = httpClientFactory.CreateClient("TaskServiceClient");
         _logger = logger;
+        _cache = cache;
     }
 
     private void InheritAuthToken()
@@ -33,6 +36,13 @@ public class ReportsController : ControllerBase
     public async Task<IActionResult> GetTasksByUser()
     {
         _logger.LogInformation("Generating tasks-by-user report");
+        
+        if (_cache.TryGetValue("tasks-by-user", out var cachedReport))
+        {
+            _logger.LogInformation("Returning cached tasks-by-user report");
+            return Ok(cachedReport);
+        }
+
         InheritAuthToken();
         var response = await _httpClient.GetAsync("/api/tasks");
         if (!response.IsSuccessStatusCode)
@@ -49,6 +59,8 @@ public class ReportsController : ControllerBase
             TaskCount = g.Count()
         }).ToList();
 
+        _cache.Set("tasks-by-user", byUser, TimeSpan.FromMinutes(5));
+
         _logger.LogInformation("tasks-by-user report generated with {Count} groups", byUser.Count);
         return Ok(byUser);
     }
@@ -57,6 +69,13 @@ public class ReportsController : ControllerBase
     public async Task<IActionResult> GetTasksByStatus()
     {
         _logger.LogInformation("Generating tasks-by-status report");
+
+        if (_cache.TryGetValue("tasks-by-status", out var cachedReport))
+        {
+            _logger.LogInformation("Returning cached tasks-by-status report");
+            return Ok(cachedReport);
+        }
+
         InheritAuthToken();
         var response = await _httpClient.GetAsync("/api/tasks");
         if (!response.IsSuccessStatusCode)
@@ -73,6 +92,8 @@ public class ReportsController : ControllerBase
             TaskCount = g.Count()
         }).ToList();
 
+        _cache.Set("tasks-by-status", byStatus, TimeSpan.FromMinutes(5));
+
         _logger.LogInformation("tasks-by-status report generated with {Count} groups", byStatus.Count);
         return Ok(byStatus);
     }
@@ -81,6 +102,13 @@ public class ReportsController : ControllerBase
     public async Task<IActionResult> GetSlaBreachReport()
     {
         _logger.LogInformation("Generating SLA breach report");
+
+        if (_cache.TryGetValue("sla-breach", out var cachedReport))
+        {
+            _logger.LogInformation("Returning cached SLA breach report");
+            return Ok(cachedReport);
+        }
+
         InheritAuthToken();
         var response = await _httpClient.GetAsync("/api/tasks");
         if (!response.IsSuccessStatusCode)
@@ -101,6 +129,8 @@ public class ReportsController : ControllerBase
                 AssigneeId = t.AssigneeId,
                 DaysOverdue = (today - t.DueDate!.Value.Date).Days
             }).ToList();
+
+        _cache.Set("sla-breach", breaches, TimeSpan.FromMinutes(5));
 
         _logger.LogInformation("SLA breach report found {Count} overdue tasks", breaches.Count);
         return Ok(breaches);

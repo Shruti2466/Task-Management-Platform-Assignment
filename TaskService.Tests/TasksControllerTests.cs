@@ -12,6 +12,8 @@ using TaskService.Controllers;
 using TaskService.Data;
 using TaskService.Models;
 using Xunit;
+using Moq;
+using Microsoft.Extensions.Logging;
 
 namespace TaskService.Tests;
 
@@ -25,21 +27,23 @@ public class TaskLogicUnitTests
         return new TaskDbContext(options);
     }
 
+    private Mock<Microsoft.Extensions.Logging.ILogger<TasksController>> MockLogger() => new Mock<Microsoft.Extensions.Logging.ILogger<TasksController>>();
+
     [Fact]
     public async Task UpdateTask_ChangingStatus_CreatesActivityLog()
     {
         // Arrange
         var context = GetMemoryContext();
-        var controller = new TasksController(context);
+        var controller = new TasksController(context, MockLogger().Object);
         
         var task = new TaskItem { Title = "Unit Test Task", Status = "Open" };
         context.Tasks.Add(task);
         await context.SaveChangesAsync();
 
-        var updatedTask = new TaskItem { Title = "Unit Test Task", Status = "In Progress" };
+        var updateDto = new TaskUpdateDto { Title = "Unit Test Task", Status = "In Progress" };
 
         // Act
-        var result = await controller.UpdateTask(task.Id, updatedTask);
+        var result = await controller.UpdateTask(task.Id, updateDto);
 
         // Assert
         Assert.IsType<NoContentResult>(result);
@@ -53,16 +57,16 @@ public class TaskLogicUnitTests
     public async Task CreateTask_SetsDefaultStatusToOpen()
     {
         var context = GetMemoryContext();
-        var controller = new TasksController(context);
+        var controller = new TasksController(context, MockLogger().Object);
         
-        var task = new TaskItem { Title = "New Task" };
+        var taskDto = new TaskCreateDto { Title = "New Task" };
         
         // Act
-        var result = await controller.CreateTask(task);
+        var result = await controller.CreateTask(taskDto);
         
         // Assert
         var createdResult = Assert.IsType<CreatedAtActionResult>(result);
-        var createdTask = Assert.IsType<TaskItem>(createdResult.Value);
+        var createdTask = Assert.IsType<TaskReadDto>(createdResult.Value);
         Assert.Equal("Open", createdTask.Status);
     }
 }
@@ -73,7 +77,6 @@ public class TasksApiIntegrationTests : IClassFixture<WebApplicationFactory<Prog
 
     public TasksApiIntegrationTests(WebApplicationFactory<Program> factory)
     {
-        // Setup in-memory DB for integration tests
         _factory = factory.WithWebHostBuilder(builder =>
         {
             builder.ConfigureServices(services =>
@@ -91,10 +94,13 @@ public class TasksApiIntegrationTests : IClassFixture<WebApplicationFactory<Prog
         var client = _factory.CreateClient();
         
         var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.UTF8.GetBytes("SuperSecretKeyForTaskManagementPlatform12345!");
+        var key = Encoding.UTF8.GetBytes(Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N"));
         var tokenDescriptor = new SecurityTokenDescriptor
         {
-            Subject = new ClaimsIdentity(new[] { new Claim(ClaimTypes.Name, "IntegrationUser") }),
+            Subject = new ClaimsIdentity(new[] { 
+                new Claim(ClaimTypes.Name, "IntegrationUser"),
+                new Claim(ClaimTypes.Role, "Admin") 
+            }),
             Expires = DateTime.UtcNow.AddHours(1),
             Issuer = "TaskManagementPlatform",
             Audience = "TaskManagementPlatform",
@@ -111,12 +117,12 @@ public class TasksApiIntegrationTests : IClassFixture<WebApplicationFactory<Prog
     {
         // Arrange
         var client = CreateAuthenticatedClient();
-        var newTask = new TaskItem { Title = "Integration Task", Priority = "High" };
+        var newTask = new TaskCreateDto { Title = "Integration Task", Priority = "High" };
 
         // Act - Create
         var createResponse = await client.PostAsJsonAsync("/api/tasks", newTask);
         createResponse.EnsureSuccessStatusCode();
-        var createdTask = await createResponse.Content.ReadFromJsonAsync<TaskItem>();
+        var createdTask = await createResponse.Content.ReadFromJsonAsync<TaskReadDto>();
 
         Assert.NotNull(createdTask);
         Assert.Equal("Integration Task", createdTask.Title);
